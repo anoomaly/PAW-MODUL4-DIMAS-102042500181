@@ -13,12 +13,54 @@ class HomeController extends Controller
     public function index(Request $request)
     {
         // TODO 3: Lengkapi logika index():
+        $query = Buku::query();
         // 1. Buat query pencarian berdasarkan judul, penulis, atau penerbit jika ada input 'search'
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('judul', 'like', "%{$search}%")
+                  ->orWhere('penulis', 'like', "%{$search}%")
+                  ->orWhere('penerbit', 'like', "%{$search}%");
+            });
+        }
         // 2. Tambahkan filter penerbit dan filter ketersediaan stok jika ada input 'penerbit' / 'status'
+        if ($request->filled('penerbit')) {
+            $query->where('penerbit', $request->input('penerbit'));
+        }
+        if ($request->input('status') === 'tersedia') {
+            $query->where('stok', '>', 0);
+        } elseif ($request->input('status') === 'habis') {
+            $query->where('stok', '<=', 0);
+        }
         // 3. Tambahkan pengurutan data berdasarkan input 'sort' (judul, tahun, stok, default: latest)
+        switch ($request->input('sort')) {
+        case 'judul_asc':
+            $query->orderBy('judul', 'asc');
+            break;
+        case 'judul_desc':
+            $query->orderBy('judul', 'desc');
+            break;
+        case 'tahun_desc':
+            $query->orderBy('tahun_terbit', 'desc');
+            break;
+        case 'tahun_asc':
+            $query->orderBy('tahun_terbit', 'asc');
+            break;
+        case 'stok_desc':
+            $query->orderBy('stok', 'desc');
+            break;
+        default:
+            $query->latest();
+        }
         // 4. Lakukan paginasi 8 data dengan withQueryString()
+         $buku = $query->paginate(8)->withQueryString();
         // 5. Ambil list penerbit unik untuk opsi dropdown filter
+        $listPenerbit = Buku::select('penerbit')
+            ->distinct()
+            ->orderBy('penerbit')
+            ->pluck('penerbit');
         // 6. Return view 'home' dengan data buku dan list penerbit
+        return view('home', compact('buku', 'listPenerbit'));
 
         $buku = Buku::paginate(8);
         $listPenerbit = collect();
